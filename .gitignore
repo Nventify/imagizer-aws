@@ -1,0 +1,33 @@
+*.swp
+package-lock.json	package-lock.json
+__pycache__
+.pytest_cache	.pytest_cache
+.env	
+*.egg-info	*.egg-info
+.DS_Store
+
+# CDK asset staging directory	# Byte-compiled / optimized / DLL files
+.cdk.staging	__pycache__/
+cdk.out	*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# CDK Context & Staging files
+.cdk.staging/
+cdk.out/ 
+
+.idea/
+/reports/
+
+node_modules/
+/imagizer_aws/imagizer_aws.egg-info/
+/cdk.context.json
+/imagizer_aws/imagizer_aws.egg-info/
