@@ -1,6 +1,6 @@
 {
-  "backend": "http://aws.amazonaws.com",
-  "cluster":{
+  "backend": "https://aws.amazonaws.com",
+  "cluster": {
     "enable": true,
     "awsAutoScaleSync": true
   }

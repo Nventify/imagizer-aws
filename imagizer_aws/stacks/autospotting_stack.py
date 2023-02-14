@@ -1,13 +1,14 @@
 """AutoSpotting Stack Module"""
+from constructs import Construct
 from aws_cdk import (
-    core,
+    Stack,
     aws_cloudformation as cf
 )
 
-import variables
+from imagizer_aws import variables
 
 
-class AutoSpottingStack(core.Stack):
+class AutoSpottingStack(Stack):
     """
     Auto Spotting: Significantly lower our Amazon AWS costs by automating the use of spot instances.
     https://github.com/AutoSpotting/AutoSpotting
@@ -15,7 +16,7 @@ class AutoSpottingStack(core.Stack):
     All autoscaling groups with the tag 'spot-enabled' will be subject to auto spotting.
     """
 
-    def __init__(self, scope: core.Construct, stack_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, stack_id: str, **kwargs) -> None:
         super().__init__(scope, stack_id, **kwargs)
 
         if variables.AUTO_SPOTTING_ENABLED:

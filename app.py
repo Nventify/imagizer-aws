@@ -2,16 +2,18 @@
 
 import os
 
-from aws_cdk import core
+from aws_cdk import App
+
 from stacks.base_stack import BaseStack
 from stacks.imagizer_cluster_stack import ImagizerClusterStack
 from stacks.autospotting_stack import AutoSpottingStack
-import variables
+
+from imagizer_aws import variables
 
 account = os.environ.get("ACCOUNT", os.environ["CDK_DEFAULT_ACCOUNT"])
 env = {"account": account, "region": variables.REGION}
 
-app = core.App()
+app = App()
 
 # Central Base (VPC and Networking)
 base_stack = BaseStack(

@@ -4,11 +4,9 @@
 import os
 
 import sys
-from aws_cdk import (
-    core
-)
+import aws_cdk as cdk
 
-import variables
+from imagizer_aws import variables
 
 USER_DATA = os.path.dirname(os.path.realpath(sys.argv[0])) + "/imagizer_aws/imagizer-config.json"
 
@@ -30,11 +28,11 @@ def generate_id(name, env=None):
 
 def add_tags(context, resource, extras_tags=None):
     """Add tags to given resource"""
-    core.Tags.of(resource).add(key="region", value=context.region, apply_to_launched_instances=True)
+    cdk.Tags.of(resource).add(key="region", value=context.region, apply_to_launched_instances=True)
 
     if not any(tag.get('name', None) == 'env' for tag in extras_tags):
-        core.Tags.of(resource).add(key="env", value=variables.ENV, apply_to_launched_instances=True)
+        cdk.Tags.of(resource).add(key="env", value=variables.ENV, apply_to_launched_instances=True)
 
     if extras_tags:
         for tag in extras_tags:
-            core.Tags.of(resource).add(key=tag['name'], value=tag['value'], apply_to_launched_instances=True)
+            cdk.Tags.of(resource).add(key=tag['name'], value=tag['value'], apply_to_launched_instances=True)

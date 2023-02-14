@@ -1,26 +1,28 @@
 """Imagizer Cluster Stack Module"""
 
-import common
+from imagizer_aws import common
+from constructs import Construct
 from aws_cdk import (
-    core,
+    Duration,
+    Stack,
+    CfnOutput,
     aws_ec2 as ec2,
     aws_cloudwatch as cloudwatch,
     aws_iam as iam,
     aws_autoscaling as autoscaling,
     aws_elasticloadbalancingv2 as elbv2,
-    aws_s3 as s3
 )
 from stacks import base_stack as base_stack_module
 
-import variables
+from imagizer_aws import variables
 
 
-class ImagizerClusterStack(core.Stack):
+class ImagizerClusterStack(Stack):
     """
     Imagizer Cluster Stack
     """
 
-    def __init__(self, scope: core.Construct, stack_id: str,
+    def __init__(self, scope: Construct, stack_id: str,
                  base_stack: base_stack_module.BaseStack, **kwargs) -> None:
         super().__init__(scope, stack_id, **kwargs)
 
@@ -34,7 +36,7 @@ class ImagizerClusterStack(core.Stack):
         self.target_group = self.__create_application_target_group(self.asg, base_stack.vpc)
         self.load_balancer = self.__create_application_load_balancer(self.target_group, base_stack.vpc)
 
-        # Setup the Auto Scaling Group scaling policy
+        # Set up the Auto Scaling Group scaling policy
         self.__create_asg_scaling_policy(self.asg)
         self.__create_asg_perms(self.asg)
         self.__create_asg_firewall(self.asg)
@@ -52,18 +54,15 @@ class ImagizerClusterStack(core.Stack):
             ),
             machine_image=ec2.GenericLinuxImage(ami_map={self.region: variables.IMAGIZER_AMI_ID}),
             user_data=ec2.UserData.custom(user_data),
-            update_type=autoscaling.UpdateType.ROLLING_UPDATE,
-            health_check=autoscaling.HealthCheck.ec2(
-                grace=core.Duration.seconds(variables.ASG_HEALTH_CHECK_GRACE_PERIOD)
-            ),
-            cooldown=core.Duration.seconds(variables.ASG_HEALTH_CHECK_GRACE_PERIOD),
-            min_capacity=variables.ASG_MIN_CAPACITY,
-            max_capacity=variables.ASG_MAX_CAPACITY,
-            rolling_update_configuration=autoscaling.RollingUpdateConfiguration(
+            update_policy=autoscaling.UpdatePolicy.rolling_update(
                 min_instances_in_service=variables.ASG_ROLL_OUT_BATCH_SIZE,
                 max_batch_size=variables.ASG_ROLL_OUT_BATCH_SIZE,
                 wait_on_resource_signals=True,
-                pause_time=core.Duration.minutes(variables.ASG_ROLL_OUT_PATCH_MINUTES))
+                pause_time=Duration.minutes(variables.ASG_ROLL_OUT_PATCH_MINUTES),
+            ),
+            cooldown=Duration.seconds(variables.ASG_HEALTH_CHECK_GRACE_PERIOD),
+            min_capacity=variables.ASG_MIN_CAPACITY,
+            max_capacity=variables.ASG_MAX_CAPACITY,
         )
 
         common.add_tags(self, asg, variables.IMAGIZER_CLUSTER_TAGS)
@@ -79,7 +78,7 @@ class ImagizerClusterStack(core.Stack):
                                                     health_check=elbv2.HealthCheck(
                                                         path="/health",
                                                         healthy_threshold_count=2,
-                                                        interval=core.Duration.seconds(10)
+                                                        interval=Duration.seconds(10)
                                                     ))
         common.add_tags(self, target_group, variables.IMAGIZER_CLUSTER_TAGS)
         return target_group
@@ -100,26 +99,25 @@ class ImagizerClusterStack(core.Stack):
         listener.add_target_groups(common.generate_id("ImagizerTargetGroup"), target_groups=[target_group])
         common.add_tags(self, load_balancer, variables.IMAGIZER_CLUSTER_TAGS)
 
-        core.CfnOutput(self, common.generate_id("ImagizerClusterEndpointOutput"),
-                       export_name="Endpoint",
-                       value="http://" + load_balancer.load_balancer_dns_name)
+        CfnOutput(self, common.generate_id("ImagizerClusterEndpointOutput"),
+                  export_name="Endpoint",
+                  value="http://" + load_balancer.load_balancer_dns_name)
 
         return load_balancer
 
-    @staticmethod
-    def __create_asg_scaling_policy(asg):
+    def __create_asg_scaling_policy(self, asg):
+        # scale by CPU utilization
         cpu_utilization = cloudwatch.Metric(
             namespace="AWS/EC2",
             metric_name="CPUUtilization",
-            dimensions={"AutoScalingGroupName": asg.auto_scaling_group_name},
-            period=core.Duration.minutes(15)
+            dimensions_map={"AutoScalingGroupName": asg.auto_scaling_group_name},
+            period=Duration.minutes(15)
         )
-
         asg.scale_on_metric(
             "ImagizerClusterCpuTarget",
             metric=cpu_utilization,
             adjustment_type=autoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
-            estimated_instance_warmup=core.Duration.seconds(400),
+            estimated_instance_warmup=Duration.seconds(variables.RPS_SCALE_IN_EVALUATION_PERIOD),
             scaling_steps=[
                 autoscaling.ScalingInterval(change=variables.ASG_CAPACITY_INCREASE,
                                             lower=variables.ASG_CPU_HIGH_THRESHOLD),
@@ -128,10 +126,56 @@ class ImagizerClusterStack(core.Stack):
             ]
         )
 
+        # scale out on request count
         asg.scale_on_request_count(
             "ImagizerClusterRpsTarget",
-            target_requests_per_second=variables.ASG_RPS_THRESHOLD,
+            target_requests_per_minute=variables.ASG_RPS_THRESHOLD * 60,
             disable_scale_in=True
+        )
+
+        # scale in on request count
+        request_count_per_minute = cloudwatch.Metric(
+            namespace="AWS/ApplicationELB",
+            metric_name="RequestCountPerTarget",
+            statistic="Sum",
+            dimensions_map={
+                "LoadBalancer": self.load_balancer.load_balancer_full_name,
+                "TargetGroup": self.target_group.target_group_full_name
+            },
+            period=Duration.minutes(1)
+        )
+        asg.scale_on_metric(
+            "ImagizerClusterRpsTargetScaleIn",
+            metric=request_count_per_minute,
+            adjustment_type=autoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
+            evaluation_periods=variables.RPS_SCALE_IN_EVALUATION_PERIOD,
+            scaling_steps=[
+                autoscaling.ScalingInterval(change=0, lower=999999),  # do not scale out
+                autoscaling.ScalingInterval(change=-1, upper=variables.ASG_RPS_THRESHOLD * 60)
+            ]
+        )
+
+        # scale out on 5XX errors
+        # this will handle the instance where the instances are under ddos
+        # and timing out with little load
+        http_5xx_errors = cloudwatch.Metric(
+            namespace="AWS/ApplicationELB",
+            metric_name="HTTPCode_Target_5XX_Count",
+            statistic="Sum",
+            dimensions_map={
+                "LoadBalancer": self.load_balancer.load_balancer_full_name
+            },
+            period=Duration.minutes(1)
+        )
+        asg.scale_on_metric(
+            "ImagizerClusterHttp5XXErrorsTargetScaleIn",
+            metric=http_5xx_errors,
+            adjustment_type=autoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
+            evaluation_periods=variables.ERRORS_SCALE_OUT_EVALUATION_PERIOD,
+            scaling_steps=[
+                autoscaling.ScalingInterval(change=3, lower=variables.ERRORS_COUNT_PER_PERIOD),
+                autoscaling.ScalingInterval(change=0, upper=0)
+            ]
         )
 
     @staticmethod

@@ -20,7 +20,10 @@ ASG_CPU_HIGH_THRESHOLD = 65  # Capacity will increase when average CPU passes th
 ASG_CPU_LOW_THRESHOLD = 30  # Capacity will decrease when average CPU drops below this threshold
 ASG_CAPACITY_INCREASE = 2  # Increase the capacity in steps of N
 ASG_CAPACITY_DECREASE = 1  # Decrease the capacity in steps of N
-ASG_HEALTH_CHECK_GRACE_PERIOD = 500
+ASG_HEALTH_CHECK_GRACE_PERIOD = 300  # The autoscaling group will wait for N seconds before checking health
+RPS_SCALE_IN_EVALUATION_PERIOD = 300  # Requests per second scale in evaluation period
+ERRORS_SCALE_OUT_EVALUATION_PERIOD = 120  # Errors scale out evaluation period
+ERRORS_COUNT_PER_PERIOD = 200
 
 # Firewall
 PUBLIC_PORT = 80

@@ -7,7 +7,7 @@ with open("README.md") as fp:
 
 setuptools.setup(
     name="imagizer_aws",
-    version="1.0.0",
+    version="2.0.0",
     description="Imagizer AWS",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -17,11 +17,8 @@ setuptools.setup(
     install_requires=[
         "pylint",
         "boto3",
-        "aws-cdk.core",
-        "aws-cdk.aws_cloudwatch_actions",
-        "aws-cdk.aws_autoscaling",
-        "aws-cdk.aws_elasticache",
-        "aws-cdk.aws_cloudformation"
+        "aws-cdk-lib>=2.0.0",
+        "constructs>=10.0.0",
     ],
     python_requires=">=3.6",
     classifiers=[

@@ -1,16 +1,17 @@
 """Base Stack Module"""
 # pylint: disable=R0913,R0902
 
-import common
+from imagizer_aws import common
+from constructs import Construct
 from aws_cdk import (
-    core,
+    Stack,
     aws_ec2 as ec2
 )
 
-import variables
+from imagizer_aws import variables
 
 
-class BaseStack(core.Stack):
+class BaseStack(Stack):
     """
     Base Stack
 
@@ -18,7 +19,7 @@ class BaseStack(core.Stack):
      Subnets, DNS records, SSL certs, etc.
     """
 
-    def __init__(self, scope: core.Construct, stack_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, stack_id: str, **kwargs) -> None:
         super().__init__(scope, stack_id, **kwargs)
 
         # Create the base VPC
@@ -27,7 +28,7 @@ class BaseStack(core.Stack):
     def __create_vpc(self):
         vpc = ec2.Vpc(self,
                       common.generate_id("Vpc"),
-                      cidr=variables.VPC_CIDR,
+                      ip_addresses=ec2.IpAddresses.cidr(variables.VPC_CIDR),
                       max_azs=variables.MAX_AVAILABILITY_ZONES,
                       nat_gateways=1)
         common.add_tags(self, vpc, [{

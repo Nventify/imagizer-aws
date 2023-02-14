@@ -36,12 +36,6 @@ source venv/bin/activate
 - Modify the [imagizer_aws/variables.py](imagizer_aws/variables.py) file making note to add the Imagizer AMI ID.
 - Modify the [imagizer_aws/imagizer-config.json](imagizer_aws/imagizer-config.json) to your needs while leaving the cluster configuration untouched to allow for Imagizer Clustering.
 
-### Deploy
-
-```bash
-cdk deploy "*"
-```
-
 ### Review Documentation
 
 Review the documentation from AWS
@@ -54,18 +48,18 @@ Review the documentation from AWS
 
 ### Useful commands
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+ * `npx cdk ls`          list all stacks in the app
+ * `npx cdk synth`       emits the synthesized CloudFormation template
+ * `npx cdk deploy`      deploy this stack to your default AWS account/region
+ * `npx cdk diff`        compare deployed stack with current state
+ * `npx cdk docs`        open CDK documentation
 
 ### Deploy
 
 Deploying will create a change set and apply any changes to the already provisioned AWS resources.
 
 ```bash
-cdk deploy "*"
+npx cdk deploy "*"
 ```
 
 ## Stacks
